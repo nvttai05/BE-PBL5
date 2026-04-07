@@ -5,31 +5,31 @@ import os
 from contextlib import asynccontextmanager
 
 from app.core.config import settings
-from app.core.database import Base, engine
-from app.services.yolo_service import yolo_service  # Để load model lúc startup
+from app.core.database import create_tables   # Chỉ import hàm này
+from app.services.yolo_service import yolo_service
 
-
-# Lifespan event để load model khi startup
+# Lifespan event
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
     print("🚀 Starting English Object Recognition API...")
-    print(f"📍 Server running at http://{settings.HOST}:{settings.PORT}")
+    print(f"📍 Server running on http://{settings.HOST}:{settings.PORT}")
 
     # Tạo database tables
-    Base.metadata.create_all(bind=engine)
-    print("✅ Database tables created/verified")
+    try:
+        create_tables()
+    except Exception as e:
+        print(f"⚠️ Warning: Could not create tables: {e}")
 
     # Load YOLO model
     try:
         if yolo_service.model is None:
-            print("Loading YOLO model during startup...")
-    except:
-        pass
+            print("🔄 Loading YOLOv11n model... (this may take 5-15 seconds)")
+        else:
+            print("✅ YOLOv11n model already loaded")
+    except Exception as e:
+        print(f"⚠️ Could not load YOLO model: {e}")
 
     yield
-
-    # Shutdown
     print("🛑 Shutting down API...")
 
 
@@ -40,20 +40,20 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS
+# CORS Middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Cho phép tất cả (dev), sau này giới hạn
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Mount static files để phục vụ audio
+# Mount static folder để phục vụ file audio (.wav)
 os.makedirs("app/static/audio", exist_ok=True)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
-# Include routers
+# Import routers sau khi app được tạo
 from app.routers import status, detect, speak, history, quiz
 
 app.include_router(status.router)
@@ -63,11 +63,10 @@ app.include_router(history.router)
 app.include_router(quiz.router)
 
 
-# Root endpoint
 @app.get("/")
 async def root():
     return {
-        "message": "English Object Recognition Learning System API",
+        "message": "English Object Recognition Learning System API is running",
         "docs": "/docs",
         "status": "/api/v1/status"
     }
@@ -75,5 +74,9 @@ async def root():
 
 if __name__ == "__main__":
     import uvicorn
-
-    uvicorn.run(app, host=settings.HOST, port=settings.PORT)
+    uvicorn.run(
+        app,
+        host=settings.HOST,
+        port=settings.PORT,
+        reload=settings.DEBUG
+    )

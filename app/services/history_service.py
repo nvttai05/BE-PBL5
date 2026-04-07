@@ -30,9 +30,9 @@ class HistoryService:
 
         history = LearningHistory(
             user_id=user_id,
-            objective_id=obj.object_id,
-            objective_name_en=object_name_en,
-            objective_name_vn=object_name_vn,
+            object_id=obj.object_id,
+            object_name_en=object_name_en,
+            object_name_vn=object_name_vn,
             confidence=confidence,
             duration_seconds=duration_seconds,
             repeat_count=1

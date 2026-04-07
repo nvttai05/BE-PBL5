@@ -24,7 +24,7 @@ class YOLOService:
             self.model = None
             raise
 
-    def detect_object(self, image_bytes:bytes) -> Dict[str, Any]:
+    def detect_objects(self, image_bytes:bytes) -> Dict[str, Any]:
         if not self.model:
             raise Exception("YOLO model not loaded!")
 
