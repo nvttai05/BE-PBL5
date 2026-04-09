@@ -8,7 +8,8 @@ from app.services.yolo_service import yolo_service
 from app.services.tts_service import tts_service
 from app.services.history_service import history_service
 from app.core.database import SessionLocal
-
+frame_count = 0
+start_time = time.time()
 router = APIRouter(prefix="/api/v1", tags=["Detection"])
 
 # --- CẤU HÌNH IP (THAY ĐỔI THEO THỰC TẾ) ---
@@ -78,17 +79,52 @@ async def websocket_detect(websocket: WebSocket):
     print("🟢 ESP32-CAM connected")
     db = SessionLocal()
     try:
+        # while True:
+        #     image_bytes = await websocket.receive_bytes()
+        #
+        #     # Hiển thị Debug Real-time
+        #     nparr = np.frombuffer(image_bytes, np.uint8)
+        #     img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        #     if img is not None:
+        #         cv2.imshow("Server Monitor", img)
+        #         cv2.waitKey(1)
+        #
+        #     # Chạy nhận diện ngầm
+        #     asyncio.create_task(run_detection_pipeline(image_bytes, db))
+        SAVE_DIR = "debug_frames"
+        import os
+        os.makedirs(SAVE_DIR, exist_ok=True)
+
+        frame_id = 0  # để lưu ảnh
+
         while True:
             image_bytes = await websocket.receive_bytes()
 
-            # Hiển thị Debug Real-time
+            # ====== ĐẾM FPS ======
+            global frame_count, start_time
+            frame_count += 1
+
+            elapsed = time.time() - start_time
+            if elapsed >= 1.0:
+                print(f"📊 FPS nhận từ ESP32: {frame_count}")
+                frame_count = 0
+                start_time = time.time()
+
+            # ====== DECODE ẢNH ======
             nparr = np.frombuffer(image_bytes, np.uint8)
             img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
             if img is not None:
                 cv2.imshow("Server Monitor", img)
                 cv2.waitKey(1)
 
-            # Chạy nhận diện ngầm
+                # ====== LƯU FRAME (DEBUG) ======
+                frame_id += 1
+                if frame_id % 10 == 0:  # lưu mỗi 10 frame (tránh đầy ổ)
+                    filename = f"{SAVE_DIR}/frame_{frame_id}.jpg"
+                    cv2.imwrite(filename, img)
+
+            # ====== CHẠY AI ======
             asyncio.create_task(run_detection_pipeline(image_bytes, db))
     except WebSocketDisconnect:
         print("🔴 CAM disconnected")
