@@ -3,3 +3,16 @@ venv/
 __pycache__/
 *.pyc
 .env
+BE/.venv/
+BE/venv/
+BE/__pycache__/
+*.pyc
+BE/.env
+BE/debug_frames/
+BE/tests/
+BE/app/static/audio/
+BE/app/.idea/
+BE/yolo11m.pt
+BE/yolo11s.pt
+BE/yolo11x.pt
+BE/yolo11n.pt
