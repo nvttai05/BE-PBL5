@@ -71,13 +71,14 @@ os.makedirs("app/static/audio", exist_ok=True)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 # Import routers sau khi app được tạo
-from app.routers import status, detect, speak, history, quiz
+from app.routers import status, detect, speak, history, quiz, object
 
 app.include_router(status.router)
 app.include_router(detect.router)
 app.include_router(speak.router)
 app.include_router(history.router)
 app.include_router(quiz.router)
+app.include_router(object.router)
 
 
 @app.get("/")
@@ -101,13 +102,9 @@ async def websocket_detect(websocket: WebSocket):
             if time.time() - last_proccessed_time <0.083:
                 continue
             last_proccessed_time = time.time()
-
             result = await asyncio.to_thread(yolo_service.detect_objects, data)
-
             detections = result.get("detections",[])
-
             base64_image = base64.b64encode(data).decode()
-
             await manager.broadcast_to_app({
                 "type": "detection",
                 "image": base64_image,
@@ -127,17 +124,13 @@ async def websocket_detect(websocket: WebSocket):
 @app.websocket("/api/v1/ws/app")
 async def websocket_app(websocket: WebSocket):
     await manager.connect_app(websocket)
-
     try:
         while True:
             await websocket.receive_text()
-
-    except WebSocketDisconnect:
-        manager.disconnect_app(websocket)
     except Exception as e:
-        print(f"Cam Error: {e}")
+        print(f"WebSocket App error: {e}")
+    finally:
         manager.disconnect_app(websocket)
-
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(

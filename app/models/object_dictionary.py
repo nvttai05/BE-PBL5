@@ -8,4 +8,4 @@ class ObjectDictionary(Base):
     class_name_vn = Column(String, nullable = False)
     example_sentence_en = Column(Text)
     pronunciation_ipa = Column(String)
-    audio_file_path = Column(String)
+    audio_file_path = Column(String, nullable = True)
