@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     PORT: int = 8000
 
     #YOLO
-    YOLO_MODEL_PATH: str = "yolo11m.pt"
+    YOLO_MODEL_PATH: str = "best.pt"
     CONFIDENCE_THRESHOLD: float = 0.5
     IMGSZ: int = 640
 
