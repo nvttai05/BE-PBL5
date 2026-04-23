@@ -6,7 +6,6 @@ from app.schemas.quiz import QuizRequest, QuizResponse
 
 router = APIRouter(prefix="/api/v1", tags=["Quiz"])
 
-
 @router.post("/quiz", response_model=QuizResponse)
 async def generate_quiz(request: QuizRequest, db: Session = Depends(get_db), user_id: int = 1):
     """Tạo quiz học từ vựng"""
