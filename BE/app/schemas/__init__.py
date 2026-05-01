@@ -8,7 +8,16 @@ from .history import (
     HistorySummaryResponse,
     SessionType,
 )
-from .quiz import QuizRequest, QuizResponse, QuizQuestion
+from .quiz import (
+    QuizQuestion,
+    QuizGenerateRequest,
+    QuizSessionResponse,
+    QuizSubmitRequest,
+    QuizResultResponse,
+    QuizHistoryResponse,
+    QuizStatsResponse,
+    QuizType,
+)
 from .common import ErrorResponse, StatusResponse
 
 __all__ = [
@@ -16,6 +25,8 @@ __all__ = [
     "SpeakRequest", "SpeakResponse",
     "HistoryItem", "HistoryListResponse", "HistoryCreateRequest",
     "HistoryDeleteResponse", "HistorySummaryResponse", "SessionType",
-    "QuizRequest", "QuizResponse", "QuizQuestion",
+    "QuizQuestion", "QuizGenerateRequest", "QuizSessionResponse",
+    "QuizSubmitRequest", "QuizResultResponse", "QuizHistoryResponse",
+    "QuizStatsResponse", "QuizType",
     "ErrorResponse", "StatusResponse",
 ]

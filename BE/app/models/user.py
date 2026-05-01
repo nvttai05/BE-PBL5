@@ -14,6 +14,7 @@ class User(Base):
 
     # Relationships
     learning_histories = relationship("LearningHistory", back_populates="user", foreign_keys="LearningHistory.user_id")
+    quiz_results       = relationship("QuizResult", back_populates="user", foreign_keys="QuizResult.user_id")
 
     def __repr__(self):
         return f"<User {self.username}>"
