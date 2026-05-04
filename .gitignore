@@ -1,0 +1,13 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+.env
+debug_frames/
+tests/
+app/static/audio/
+app/.idea/
+yolo11m.pt
+yolo11s.pt
+yolo11x.pt
+yolo11n.pt
