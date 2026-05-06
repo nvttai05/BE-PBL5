@@ -100,12 +100,53 @@ class TTSService:
             self.engine = pyttsx3.init()
             self.engine.setProperty('rate', settings.TTS_RATE)
             self.engine.setProperty('volume', settings.TTS_VOLUME)
-
+            self._set_voice()
             print("TS Service initialized successfully (WAV output)")
 
         except Exception as e:
             print(f"Failed to initialize TTS engine: {e}")
             self.engine = None
+
+    def _set_voice(self):
+        if not self.engine:
+            return
+
+        voices = self.engine.getProperty("voices")
+
+        if not voices:
+            print("No TTS voices found on this system")
+            return
+
+        print("Available TTS voices:")
+        for index, voice in enumerate(voices):
+            print(f"[{index}] id={voice.id} | name={getattr(voice, 'name', '')}")
+
+        keyword = settings.TTS_VOICE_KEYWORD.lower().strip()
+
+        selected_voice = None
+
+        for voice in voices:
+            voice_id = str(voice.id).lower()
+            voice_name = str(getattr(voice, "name", "")).lower()
+
+            if keyword and (keyword in voice_id or keyword in voice_name):
+                selected_voice = voice
+                break
+
+        if selected_voice is None:
+            voice_index = settings.TTS_VOICE_ID
+
+            if 0 <= voice_index < len(voices):
+                selected_voice = voices[voice_index]
+            else:
+                selected_voice = voices[0]
+
+        self.engine.setProperty("voice", selected_voice.id)
+
+        print(
+            "Selected TTS voice:",
+            getattr(selected_voice, "name", selected_voice.id)
+        )
 
     def _ensure_audio_dir(self):
         os.makedirs(self.audio_dir, exist_ok=True)
