@@ -3,6 +3,7 @@ import threading
 from datetime import datetime
 import pyttsx3
 from app.core.config import settings
+from pydub import AudioSegment, effects
 
 DURATION_MAP = {
     "person": 0.9,
@@ -166,6 +167,18 @@ class TTSService:
     def audio_exists(self, text: str) -> bool:
         return os.path.exists(self.get_audio_path(text))
 
+    def _boost_wav_volume(self, filepath: str, gain_db: float = 8.0):
+        audio = AudioSegment.from_wav(filepath)
+
+        # Chuẩn hóa peak để âm lượng đều hơn, tránh file quá nhỏ
+        audio = effects.normalize(audio)
+
+        # Tăng thêm gain
+        louder = audio + gain_db
+
+        # Xuất lại file WAV
+        louder.export(filepath, format="wav")
+
     def generate_audio(self, text: str, accent: str = "en-uk") -> dict:
 
         if not self.engine:
@@ -192,6 +205,7 @@ class TTSService:
 
             if not os.path.exists(filepath) or os.path.getsize(filepath) == 0:
                 raise Exception("Generated WAV file is missing or empty")
+            self._boost_wav_volume(filepath, gain_db=6.0)
 
             print(f"Generated audio: {filename} | Duration {duration:.2f}s")
 
