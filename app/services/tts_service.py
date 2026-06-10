@@ -6,7 +6,7 @@ from app.core.config import settings
 from pydub import AudioSegment, effects
 
 DURATION_MAP = {
-    "person": 0.9,
+    "person": 1.3,
     "bicycle": 1.0,
     "car": 0.9,
     "motorcycle": 1.1,

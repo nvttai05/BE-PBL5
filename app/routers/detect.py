@@ -20,7 +20,7 @@ router = APIRouter(prefix="/api/v1", tags=["Detection"])
 # ======================================================
 # CONFIG
 # ======================================================
-SPEAKER_URL = "http://192.168.2.105/play"
+SPEAKER_URL = "http://192.168.2.102/play"
 BASE_URL = "http://192.168.2.101:8000"
 
 IMAGE_WIDTH = 320
@@ -37,9 +37,16 @@ study_session_active = False
 last_spoken_object = ""
 last_spoken_time = 0.0
 
-COOLDOWN_SAME_OBJ = 3.0
-COOLDOWN_ANY_OBJ = 2.0
+# Loa đọc thưa hơn để tránh spam ESP32 loa
+COOLDOWN_SAME_OBJ = 4.0
+COOLDOWN_ANY_OBJ = 4.0
 
+speaker_lock = asyncio.Lock()
+speaker_busy_until = 0.0
+
+# Cho ESP32 loa nghỉ thêm một chút sau mỗi lần gọi
+SPEAKER_EXTRA_GAP = 0.8
+SPEAKER_MIN_BUSY_SECONDS = 2.2
 # ======================================================
 # HISTORY SAVE CONDITION
 # ======================================================
@@ -52,8 +59,8 @@ REQUIRED_DETECTIONS_IN_WINDOW = int(
 )
 
 # Tránh lưu history liên tục sau khi đã đạt điều kiện
-# Vì history_service cũng merge trong 60s, để 60s là hợp lý.
-HISTORY_SAVE_COOLDOWN_SECONDS = 60.0
+# Vì history_service cũng merge trong 120s, để 120s là hợp lý.
+HISTORY_SAVE_COOLDOWN_SECONDS = 120.0
 
 # Lưu timestamp detect theo từng object
 object_detection_windows = defaultdict(deque)
@@ -62,7 +69,7 @@ object_detection_windows = defaultdict(deque)
 last_history_saved_at = {}
 
 # HTTP client dùng lại connection
-http_client = httpx.AsyncClient(timeout=1.0)
+http_client = httpx.AsyncClient(timeout=2.0)
 
 
 # ======================================================
@@ -94,7 +101,6 @@ def _save_history_sync(first_obj: dict, duration_seconds: float):
 
 def reset_stability_windows():
     object_detection_windows.clear()
-    last_history_saved_at.clear()
 
 
 def update_object_stability(first_obj: dict) -> dict:
@@ -162,8 +168,12 @@ def mark_history_saved(label: str):
 # ======================================================
 async def try_speak(first_obj: dict):
     """
-    Phát loa khi đang START và có detection.
-    Phần này vẫn dùng cooldown riêng, không phụ thuộc điều kiện lưu history.
+    Logic loa đơn giản như code cũ:
+    - Chỉ phát khi đang START.
+    - Cooldown cùng vật / khác vật.
+    - Gọi ESP32 speaker /play.
+    - Không dùng speaker_busy_until.
+    - Không dùng DURATION_MAP.
     """
     global last_spoken_object, last_spoken_time
 
@@ -171,7 +181,6 @@ async def try_speak(first_obj: dict):
         return
 
     label = first_obj["class_name"].strip().lower()
-
     now = time.monotonic()
     time_passed = now - last_spoken_time
 
@@ -186,24 +195,23 @@ async def try_speak(first_obj: dict):
     last_spoken_time = now
 
     try:
-        if not tts_service.audio_exists(label):
+        if tts_service.audio_exists(label):
+            audio_url = tts_service.get_audio_url(label)
+            full_url = BASE_URL + audio_url
+
+            try:
+                await http_client.post(
+                    SPEAKER_URL,
+                    json={"audio_url": full_url},
+                )
+                print(f"🔊 Playing: {label} -> {audio_url}")
+            except Exception as e:
+                print(f"⚠️ Speaker error: {type(e).__name__}: {repr(e)}")
+        else:
             print(f"⚠️ Missing pregenerated audio for: {label}")
-            return
-
-        audio_url = tts_service.get_audio_url(label)
-        full_url = BASE_URL + audio_url
-
-        try:
-            await http_client.post(
-                SPEAKER_URL,
-                json={"audio_url": full_url},
-            )
-            print(f"🔊 Playing: {label} -> {audio_url}")
-        except Exception as e:
-            print(f"⚠️ Speaker error: {e}")
 
     except Exception as e:
-        print(f"⚠️ Audio handling error: {e}")
+        print(f"⚠️ Audio handling error: {type(e).__name__}: {repr(e)}")
 
 
 async def handle_detection_side_effects(first_obj: dict):
@@ -326,16 +334,17 @@ async def detector_worker(frame_queue: asyncio.Queue):
                 first_obj = detections[0]
                 stable_info = update_object_stability(first_obj)
 
-                # Lưu ý:
-                # Vì đã update stability ở đây, handle_detection_side_effects
-                # không nên update lần nữa. Do đó gọi side-effect riêng bên dưới.
                 label = first_obj["class_name"].strip().lower()
 
-                # Phát loa theo cooldown
-                asyncio.create_task(try_speak(first_obj))
-
-                # Nếu cùng vật đủ 10FPS trong 2 giây thì mới lưu history
+                # ==================================================
+                # Chỉ khi cùng 1 object ổn định đủ 10 frame / 2 giây
+                # thì mới phát loa và mới xét lưu lịch sử.
+                # ==================================================
                 if stable_info["stable"]:
+                    # 1. Phát loa theo cooldown 3-4 giây
+                    asyncio.create_task(try_speak(first_obj))
+
+                    # 2. Lưu lịch sử nếu cùng từ chưa được lưu trong 2 phút gần đây
                     if can_save_history_for_label(label):
                         stable_obj = dict(first_obj)
                         stable_obj["confidence"] = stable_info["avg_confidence"]
@@ -424,6 +433,7 @@ async def websocket_detect(websocket: WebSocket):
                         reset_stability_windows()
                         last_spoken_object = ""
                         last_spoken_time = 0.0
+
 
                     # START -> STOP
                     if not new_state and study_session_active:

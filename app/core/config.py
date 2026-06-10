@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     YOLO_MODEL_PATH: str = "bestt.pt"
     CONFIDENCE_THRESHOLD: float = 0.3
     IMGSZ: int = 640
-    YOLO_MAX_DET: int = 2
+    YOLO_MAX_DET: int = 3
     #Person filter
     PERSON_CONFIDENCE_THRESHOLD: float = 0.73
     PERSON_MIN_AREA_RATIO: float = 0.12
